@@ -1,20 +1,26 @@
 require("dotenv").config();
 const { ObjectId } = require("mongodb");
 const { validationResult } = require("express-validator");
-const TaskModel = require("../model/task");
+const conectDB = require("../db");
+const { mongo_collection } = require("../config/index");
+const isObjectEmpty = require("../utils/isObjectEmpty");
 
 const filters = ["completado", "pendiente"];
 
+const collection = async () => {
+  const db = (await conectDB()).collection(mongo_collection);
+  return db;
+};
+
 const taskController = {
   create: async (req, res) => {
+    req.body.estado = "pendiente";
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const { nombre, descripcion } = req.body;
     try {
-      const newTask = new TaskModel({ nombre, descripcion });
-      await newTask.save();
+      await (await collection()).insertOne(req.body);
       res.status(201).json({ msg: "Tarea guardada correctamente" });
     } catch (error) {
       res.status(400).json({ error });
@@ -23,10 +29,9 @@ const taskController = {
   update: async (req, res) => {
     const { id } = req.params;
     try {
-      const task = await TaskModel.updateOne(
-        { _id: new ObjectId(id) },
-        { ...req.body }
-      );
+      const task = await (
+        await collection()
+      ).updateOne({ _id: new ObjectId(id) }, { $set: req.body });
       if (task.modifiedCount === 0)
         return res.status(400).json({ error: `Tarea con ID ${id} no existe` });
       res.status(200).json({ msg: "Tarea actualizada correctamente" });
@@ -37,7 +42,9 @@ const taskController = {
   delete: async (req, res) => {
     const { id } = req.params;
     try {
-      const task = await TaskModel.deleteOne({ _id: new ObjectId(id) });
+      const task = await (
+        await collection()
+      ).deleteOne({ _id: new ObjectId(id) });
       if (task.deletedCount === 0)
         return res.status(400).json({ error: `Tarea con ID ${id} no existe` });
       res.status(200).json({ msg: "Tarea eliminada correctamente" });
@@ -46,17 +53,26 @@ const taskController = {
     }
   },
   getAll: async (req, res) => {
-    const { state } = req.query;
     let tasks;
     try {
-      if (state) {
-        if (filters.includes(state))
-          tasks = await TaskModel.find({ estado: state }).toArray();
-        else
+      if (isObjectEmpty(req.query))
+        tasks = await (await collection()).find({}).toArray();
+      else {
+        const { state } = req.query;
+        if (state) {
+          if (filters.includes(state))
+            tasks = await (await collection())
+              .find({ estado: state })
+              .toArray();
+          else
+            return res
+              .status(400)
+              .json({ error: "Valor de consulta inválido" });
+        } else
           return res
             .status(400)
             .json({ error: "Parámetro de consulta inválido" });
-      } else tasks = await TaskModel.find({}).toArray();
+      }
       res.status(200).json(tasks);
     } catch (error) {
       res.status(400).json({ error });
@@ -65,7 +81,9 @@ const taskController = {
   getById: async (req, res) => {
     const { id } = req.params;
     try {
-      const task = await TaskModel.findById(new ObjectId(id));
+      const task = await (
+        await collection()
+      ).findOne({ _id: new ObjectId(id) });
       if (!task)
         return res.status(400).json({ error: `Tarea con ID ${id} no existe` });
       res.status(200).json({ task });
