@@ -3,6 +3,8 @@ const express = require("express");
 const app = express();
 const routesTask = require("./routes/routesTask");
 
+require('./db.js');
+
 const methods = ["GET", "POST", "PUT", "DELETE"];
 
 app.use(express.json());
