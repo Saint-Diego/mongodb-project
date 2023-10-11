@@ -16,6 +16,7 @@
     "mime-db": "^1.52.0",
     "mime-types": "^2.1.35",
     "mongodb": "^6.1.0",
+    "mongoose": "^7.6.1",
     "nodemon": "^3.0.1",
     "proxy-from-env": "^1.1.0",
     "readline-sync": "^1.4.10",

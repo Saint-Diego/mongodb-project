@@ -3,6 +3,7 @@ const { ObjectId } = require("mongodb");
 const { validationResult } = require("express-validator");
 const conectDB = require("../db");
 const { mongo_collection } = require("../config/index");
+const isObjectEmpty = require("../utils/isObjectEmpty");
 
 const filters = ["completado", "pendiente"];
 
@@ -52,17 +53,26 @@ const taskController = {
     }
   },
   getAll: async (req, res) => {
-    const { state } = req.query;
     let tasks;
     try {
-      if (state) {
-        if (filters.includes(state))
-          tasks = await (await collection()).find({ estado: state }).toArray();
-        else
+      if (isObjectEmpty(req.query))
+        tasks = await (await collection()).find({}).toArray();
+      else {
+        const { state } = req.query;
+        if (state) {
+          if (filters.includes(state))
+            tasks = await (await collection())
+              .find({ estado: state })
+              .toArray();
+          else
+            return res
+              .status(400)
+              .json({ error: "Valor de consulta inválido" });
+        } else
           return res
             .status(400)
             .json({ error: "Parámetro de consulta inválido" });
-      } else tasks = await (await collection()).find({}).toArray();
+      }
       res.status(200).json(tasks);
     } catch (error) {
       res.status(400).json({ error });
