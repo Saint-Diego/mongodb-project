@@ -5,6 +5,8 @@ const routesTask = require("./routes/routesTask");
 
 const methods = ["GET", "POST", "PUT", "DELETE"];
 
+require("./db");
+
 app.use(express.json());
 
 app.use("/tareas", routesTask);
