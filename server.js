@@ -1,5 +1,6 @@
 const app = require("./src/app");
 const { host, port } = require("./src/config/index");
+const connectDB = require("./src/db");
 
 console.log(`Cargando servidor...
                        _oo0oo_
@@ -23,6 +24,7 @@ console.log(`Cargando servidor...
      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 `);
 
-app.listen(port, () => {
+app.listen(port, async () => {
+  await connectDB();
   console.log(`server running at http://${host}:${port}`);
 });

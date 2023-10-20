@@ -1,7 +1,13 @@
 const express = require("express");
 const { check } = require("express-validator");
 const routesTask = express.Router();
-const taskController = require("../controllers/taskController");
+const {
+  createTask,
+  updateTask,
+  deleteTask,
+  getAllTasks,
+  getTaskById,
+} = require("../controllers/taskController");
 const isObjectEmpty = require("../utils/isObjectEmpty");
 
 const emptyBody = (req, res, next) => {
@@ -11,19 +17,19 @@ const emptyBody = (req, res, next) => {
 
 routesTask
   .route("/")
-  .get(taskController.getAll)
+  .get(getAllTasks)
   .post(
     [
       check("nombre", "El nombre es obligatorio").not().isEmpty(),
       check("descripcion", "La descripción es obligatoria").not().isEmpty(),
     ],
-    taskController.create
+    createTask
   );
 
 routesTask
   .route("/:id")
-  .get(taskController.getById)
-  .put(emptyBody, taskController.update)
-  .delete(taskController.delete);
+  .get(getTaskById)
+  .put(emptyBody, updateTask)
+  .delete(deleteTask);
 
 module.exports = routesTask;
