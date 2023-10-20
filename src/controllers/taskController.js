@@ -1,86 +1,97 @@
 require("dotenv").config();
 const { ObjectId } = require("mongodb");
 const { validationResult } = require("express-validator");
-const conectDB = require("../db");
-const { mongo_collection } = require("../config/index");
+const TaskModel = require("../model/task");
+const isObjectEmpty = require("../utils/isObjectEmpty");
 
 const filters = ["completado", "pendiente"];
 
-const collection = async () => {
-  const db = (await conectDB()).collection(mongo_collection);
-  return db;
+const createTask = async (req, res) => {
+  req.body.estado = "pendiente";
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  try {
+    const { nombre, descripcion } = req.body;
+    const newTask = new TaskModel({ nombre, descripcion });
+    await newTask.save(req.body);
+    res.status(201).json({ msg: "Tarea guardada correctamente" });
+  } catch (error) {
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
 };
 
-const taskController = {
-  create: async (req, res) => {
-    req.body.estado = "pendiente";
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    try {
-      await (await collection()).insertOne(req.body);
-      res.status(201).json({ msg: "Tarea guardada correctamente" });
-    } catch (error) {
-      res.status(400).json({ error });
-    }
-  },
-  update: async (req, res) => {
-    const { id } = req.params;
-    try {
-      const task = await (
-        await collection()
-      ).updateOne({ _id: new ObjectId(id) }, { $set: req.body });
-      if (task.modifiedCount === 0)
-        return res.status(400).json({ error: `Tarea con ID ${id} no existe` });
-      res.status(200).json({ msg: "Tarea actualizada correctamente" });
-    } catch (error) {
-      res.status(404).json({ error });
-    }
-  },
-  delete: async (req, res) => {
-    const { id } = req.params;
-    try {
-      const task = await (
-        await collection()
-      ).deleteOne({ _id: new ObjectId(id) });
-      if (task.deletedCount === 0)
-        return res.status(400).json({ error: `Tarea con ID ${id} no existe` });
-      res.status(200).json({ msg: "Tarea eliminada correctamente" });
-    } catch (error) {
-      res.status(404).json({ error });
-    }
-  },
-  getAll: async (req, res) => {
-    const { state } = req.query;
-    let tasks;
-    try {
+const updateTask = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const taskUpdated = await TaskModel.findByIdAndUpdate(
+      id.toString(),
+      {
+        ...req.body,
+      },
+      {
+        new: true,
+      }
+    );
+    if (!taskUpdated)
+      return res.status(404).json({ error: `Tarea con ID ${id} no existe` });
+    res.status(200).json({ msg: "Tarea actualizada correctamente" });
+  } catch (error) {
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+};
+
+const deleteTask = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const taskDeleted = await TaskModel.findByIdAndDelete(id.toString());
+    if (!taskDeleted)
+      return res.status(404).json({ error: `Tarea con ID ${id} no existe` });
+    res.status(200).json({ msg: "Tarea eliminada correctamente" });
+  } catch (error) {
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+};
+
+const getAllTasks = async (req, res) => {
+  let tasks;
+  try {
+    if (isObjectEmpty(req.query)) tasks = await TaskModel.find();
+    else {
+      const { state } = req.query;
       if (state) {
         if (filters.includes(state))
-          tasks = await (await collection()).find({ estado: state }).toArray();
+          tasks = await TaskModel.find({ estado: state });
         else
-          return res
-            .status(400)
-            .json({ error: "Parámetro de consulta inválido" });
-      } else tasks = await (await collection()).find({}).toArray();
-      res.status(200).json(tasks);
-    } catch (error) {
-      res.status(400).json({ error });
+          return res.status(400).json({ error: "Valor de consulta inválido" });
+      } else
+        return res
+          .status(400)
+          .json({ error: "Parámetro de consulta inválido" });
     }
-  },
-  getById: async (req, res) => {
-    const { id } = req.params;
-    try {
-      const task = await (
-        await collection()
-      ).findOne({ _id: new ObjectId(id) });
-      if (!task)
-        return res.status(400).json({ error: `Tarea con ID ${id} no existe` });
-      res.status(200).json({ task });
-    } catch (error) {
-      res.status(404).json({ error });
-    }
-  },
+    res.status(200).json(tasks);
+  } catch (error) {
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
 };
 
-module.exports = taskController;
+const getTaskById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const taskFinded = await TaskModel.findById(id.toString());
+    if (!taskFinded)
+      return res.status(404).json({ error: `Tarea con ID ${id} no existe` });
+    res.status(200).json(taskFinded);
+  } catch (error) {
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+};
+
+module.exports = {
+  createTask,
+  updateTask,
+  deleteTask,
+  getAllTasks,
+  getTaskById,
+};
